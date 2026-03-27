@@ -1,13 +1,10 @@
 <div align="center">
 
-<pre>
- ███╗   ███╗██╗ █████╗     ██╗  ██╗███████╗██╗     ██╗███████╗ █████╗ ██████╗
- ████╗ ████║██║██╔══██╗    ██║ ██╔╝██╔════╝██║     ██║██╔════╝██╔══██╗██╔══██╗
- ██╔████╔██║██║███████║    █████╔╝ █████╗  ██║     ██║███████╗███████║██████╔╝
- ██║╚██╔╝██║██║██╔══██║    ██╔═██╗ ██╔══╝  ██║     ██║╚════██║██╔══██║██╔═══╝
- ██║ ╚═╝ ██║██║██║  ██║    ██║  ██╗███████╗███████╗██║███████║██║  ██║██║
- ╚═╝     ╚═╝╚═╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝
-</pre>
+<picture>
+     <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg" />
+     <source media="(prefers-color-scheme: light)" srcset="docs/logo.svg" />
+     <img alt="Mia Kelisap" src="docs/logo.svg" width="800" />
+</picture>
 
 **Your AI-powered WhatsApp companion with persistent memory.**
 
