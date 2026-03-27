@@ -33,6 +33,9 @@ export class WhatsAppService {
   /** In-memory message store for retry handling — keyed by message ID */
   private messageStore: Map<string, proto.IMessage> = new Map();
   private readonly MAX_STORE_SIZE = 500;
+  /** Track if we've received any message event since connecting */
+  private hasReceivedMessages = false;
+  private livenessTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -66,8 +69,15 @@ export class WhatsAppService {
     }
 
     this.intentionalDisconnect = false;
+    this.hasReceivedMessages = false;
     this.status = 'connecting';
     logger.info({ userId: this.userId }, 'Initiating WhatsApp connection');
+
+    // On reconnect attempts (not first connect), clear stale Signal sessions
+    // This forces fresh encryption negotiation with contacts
+    if (this.reconnectAttempts > 0) {
+      this.clearSignalSessions();
+    }
 
     if (!fs.existsSync(this.sessionDir)) {
       fs.mkdirSync(this.sessionDir, { recursive: true });
@@ -110,6 +120,7 @@ export class WhatsAppService {
       void this.handleConnectionUpdate(update);
     });
     sock.ev.on('messages.upsert', (upsert) => {
+      this.hasReceivedMessages = true;
       // Store all messages for retry handling
       for (const msg of upsert.messages) {
         if (msg.key.id && msg.message) {
@@ -140,6 +151,7 @@ export class WhatsAppService {
     if (connection === 'close') {
       this.qrCode = null;
       this.stopHealthCheck();
+      this.stopLivenessCheck();
       const statusCode = (
         lastDisconnect?.error as { output?: { statusCode?: number } }
       )?.output?.statusCode;
@@ -199,6 +211,7 @@ export class WhatsAppService {
         'WhatsApp connected',
       );
       this.startHealthCheck();
+      this.startLivenessCheck();
       await apiClient.notifyConnectionStatus(this.userId, 'connected');
     }
   }
@@ -375,6 +388,38 @@ export class WhatsAppService {
   }
 
   /**
+   * After connecting, wait 2 minutes. If no messages.upsert event has fired,
+   * the session is "connected but deaf" — clear Signal sessions and reconnect.
+   */
+  private startLivenessCheck(): void {
+    this.stopLivenessCheck();
+    this.livenessTimer = setTimeout(() => {
+      if (this.status === 'connected' && !this.hasReceivedMessages) {
+        logger.warn(
+          { userId: this.userId },
+          'No messages received after 2min — session is deaf, clearing Signal sessions and reconnecting',
+        );
+        this.stopHealthCheck();
+        if (this.socket) {
+          this.socket.end(undefined);
+          this.socket = null;
+        }
+        this.status = 'disconnected';
+        this.clearSignalSessions();
+        this.reconnectAttempts = 0;
+        void this.connect();
+      }
+    }, 120_000); // 2 minutes
+  }
+
+  private stopLivenessCheck(): void {
+    if (this.livenessTimer) {
+      clearTimeout(this.livenessTimer);
+      this.livenessTimer = null;
+    }
+  }
+
+  /**
    * Periodically check if the WebSocket is still alive.
    * Baileys sometimes silently loses the connection without firing
    * connection.update — this catches those cases and force-reconnects.
@@ -430,6 +475,7 @@ export class WhatsAppService {
   async disconnect(): Promise<void> {
     this.intentionalDisconnect = true;
     this.stopHealthCheck();
+    this.stopLivenessCheck();
     if (this.socket) {
       this.socket.end(undefined);
       this.socket = null;
@@ -439,6 +485,32 @@ export class WhatsAppService {
     this.reconnectAttempts = 0;
     logger.info({ userId: this.userId }, 'Intentionally disconnected');
     await apiClient.notifyConnectionStatus(this.userId, 'disconnected');
+  }
+
+  /**
+   * Clear stale Signal session files while preserving auth credentials.
+   * This forces Baileys to renegotiate encryption with contacts
+   * without requiring a new QR scan.
+   */
+  clearSignalSessions(): void {
+    if (!fs.existsSync(this.sessionDir)) return;
+
+    const files = fs.readdirSync(this.sessionDir);
+    let cleared = 0;
+    for (const file of files) {
+      // Remove session-*.json and sender-key-*.json (Signal encryption state)
+      // Keep creds.json (WhatsApp auth), pre-key-*.json, and app-state-*.json
+      if (file.startsWith('session-') || file.startsWith('sender-key-')) {
+        fs.unlinkSync(path.join(this.sessionDir, file));
+        cleared++;
+      }
+    }
+    if (cleared > 0) {
+      logger.info(
+        { userId: this.userId, cleared },
+        'Cleared stale Signal session files',
+      );
+    }
   }
 
   clearSession(): void {

@@ -92,9 +92,24 @@ class SessionManager {
         continue;
       }
 
+      // Validate creds.json is not empty/corrupt
       try {
-        logger.info({ userId }, 'Restoring session');
-        await this.connect(userId);
+        const credsContent = fs.readFileSync(credsPath, 'utf-8').trim();
+        if (!credsContent || credsContent.length < 10) {
+          logger.warn({ userId }, 'Skipping — creds.json is empty or corrupt');
+          continue;
+        }
+        JSON.parse(credsContent);
+      } catch {
+        logger.warn({ userId }, 'Skipping — creds.json is invalid JSON');
+        continue;
+      }
+
+      try {
+        logger.info({ userId }, 'Restoring session — clearing stale Signal sessions');
+        const service = this.getOrCreate(userId);
+        service.clearSignalSessions();
+        await service.connect();
       } catch (error) {
         logger.error({ error, userId }, 'Failed to restore session');
       }
