@@ -1,0 +1,43 @@
+{
+  "name": "mia-kelisap-bridge",
+  "version": "0.1.0",
+  "description": "WhatsApp bridge service using Baileys for Mia Kelisap",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "express": "^5.1.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "qrcode": "^1.5.4",
+    "dotenv": "^16.5.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.0",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^10.0.0",
+    "prettier": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
