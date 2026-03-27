@@ -304,7 +304,7 @@ mia-kelisap/
 
 ## License
 
-Private project. Not open source.
+MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
